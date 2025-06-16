@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Speech Recognition T-Checker</title>
+        <style>
+                body {
+                        font-family: 'Arial', sans-serif;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        min-height: 100vh;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        margin: 0;
+                        color: white;
+                }
+
+                .container {
+                        background: rgba(255, 255, 255, 0.1);
+                        backdrop-filter: blur(10px);
+                        border-radius: 20px;
+                        padding: 40px;
+                        text-align: center;
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                        max-width: 500px;
+                        width: 90%;
+                }
+
+                h1 {
+                        margin: 0 0 30px 0;
+                        font-size: 2.5em;
+                        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+                }
+
+                #startButton {
+                        background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+                        border: none;
+                        color: white;
+                        padding: 15px 30px;
+                        font-size: 18px;
+                        border-radius: 50px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                        margin: 20px 0;
+                }
+
+                #startButton:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+                }
+
+                #startButton:active {
+                        transform: translateY(0);
+                }
+
+                #startButton:disabled {
+                        background: #666;
+                        cursor: not-allowed;
+                        transform: none;
+                }
+
+                #status {
+                        margin: 20px 0;
+                        font-size: 18px;
+                        min-height: 50px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                }
+
+                #transcript {
+                        background: rgba(255, 255, 255, 0.2);
+                        border-radius: 10px;
+                        padding: 20px;
+                        margin: 20px 0;
+                        min-height: 60px;
+                        font-size: 16px;
+                        border: 1px solid rgba(255, 255, 255, 0.3);
+                }
+
+                .listening {
+                        animation: pulse 1.5s infinite;
+                }
+
+                @keyframes pulse {
+                        0% {
+                                opacity: 1;
+                        }
+
+                        50% {
+                                opacity: 0.5;
+                        }
+
+                        100% {
+                                opacity: 1;
+                        }
+                }
+
+                .error {
+                        color: #ff6b6b;
+                        background: rgba(255, 107, 107, 0.1);
+                        padding: 10px;
+                        border-radius: 5px;
+                        margin: 10px 0;
+                }
+
+                .success {
+                        color: #4ecdc4;
+                }
+        </style>
+</head>
+
+<body>
+        <div class="container">
+                <h1>🎤 Mama's T-Checker</h1>
+                <button id="startButton">Start Listening</button>
+                <div id="status">Click the button to start listening!</div>
+                <div id="transcript">Your speech will appear here...</div>
+        </div>
+
+        <script>
+                let recognition;
+                let isListening = false;
+
+                const startButton = document.getElementById('startButton');
+                const status = document.getElementById('status');
+                const transcript = document.getElementById('transcript');
+
+                // Check if browser supports speech recognition
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                        status.innerHTML = '<div class="error">Speech recognition not supported in this browser. Please use Chrome, Edge, or Safari.</div>';
+                        startButton.disabled = true;
+                } else {
+                        // Initialize speech recognition
+                        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                        recognition = new SpeechRecognition();
+
+                        recognition.continuous = false;
+                        recognition.interimResults = false;
+                        recognition.lang = 'en-US';
+
+                        recognition.onstart = function () {
+                                isListening = true;
+                                startButton.textContent = 'Listening...';
+                                startButton.disabled = true;
+                                status.innerHTML = '<div class="listening">🎧 Listening... Speak now!</div>';
+                                transcript.textContent = 'Listening for your speech...';
+                        };
+
+                        recognition.onresult = function (event) {
+                                const spokenText = event.results[0][0].transcript;
+                                transcript.textContent = `You said: "${spokenText}"`;
+
+                                // Check if the text contains the letter 't' (case insensitive)
+                                const hasT = spokenText.toLowerCase().includes('t');
+
+                                let responseText;
+                                if (hasT) {
+                                        responseText = "Mama doesn't like it";
+                                        status.innerHTML = '❌ Found a "T" - Mama doesn\'t like it!';
+                                } else {
+                                        responseText = "Mama does like it";
+                                        status.innerHTML = '<div class="success">✅ No "T" found - Mama does like it!</div>';
+                                }
+
+                                // Speak the response
+                                speakText(responseText);
+                        };
+
+                        recognition.onerror = function (event) {
+                                console.error('Speech recognition error:', event.error);
+                                status.innerHTML = '<div class="error">❌ Error: ' + event.error + '</div>';
+                                resetButton();
+                        };
+
+                        recognition.onend = function () {
+                                resetButton();
+                        };
+                }
+
+                function speakText(text) {
+                        if ('speechSynthesis' in window) {
+                                const utterance = new SpeechSynthesisUtterance(text);
+                                utterance.rate = 0.8;
+                                utterance.pitch = 1;
+                                utterance.volume = 0.8;
+
+                                utterance.onend = function () {
+                                        status.innerHTML += '<br>🔊 Speech completed!';
+                                };
+
+                                speechSynthesis.speak(utterance);
+                        } else {
+                                status.innerHTML += '<br><div class="error">Text-to-speech not supported</div>';
+                        }
+                }
+
+                function resetButton() {
+                        isListening = false;
+                        startButton.textContent = 'Start Listening';
+                        startButton.disabled = false;
+                }
+
+                startButton.addEventListener('click', function () {
+                        if (recognition && !isListening) {
+                                recognition.start();
+                        }
+                });
+        </script>
+</body>
+
+</html>
